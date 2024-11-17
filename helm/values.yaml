@@ -1,0 +1,569 @@
+default:
+  # List of environment variables applied to all components
+  env:
+    - name: OTEL_SERVICE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: "metadata.labels['app.kubernetes.io/component']"
+    - name: OTEL_COLLECTOR_NAME
+      value: '{{ include "helm.name" . }}-otel-collector'
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: cumulative
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: 'service.name=otel-collector,service.namespace={{ .Release.Namespace }},service.version={{ .Chart.AppVersion }}'
+  # Allows overriding and additions to .Values.default.env
+  envOverrides: []
+  #  - name: OTEL_K8S_NODE_NAME
+  #    value: "someConstantValue"
+  image:
+    repository: nekitsmertin/
+    # Overrides the image tag whose default is the chart appVersion.
+    # The service's name will be applied to the end of this value.
+    tag: ""
+    pullPolicy: IfNotPresent
+    # This is for the secretes for pulling an image from a private repository more information can be found here:
+    # https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    pullSecrets: []  # Replaces imagePullSecrets: []
+  # Default # of replicas for all components
+  replicas: 1
+  # default revisionHistoryLimit for all components (number of old ReplicaSets to retain)
+  revisionHistoryLimit: 10
+  # Default schedulingRules for all components
+  schedulingRules:
+    nodeSelector: {}
+    affinity: {}
+    tolerations: []
+  # Default securityContext for all components
+  securityContext: {}
+
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+components:
+  ## Demo Components are named objects (services) with several properties
+  # demoService:
+  ## Enable the component (service)
+  #   enabled: true
+  #   useDefault:
+  ## Use default environment variables
+  #     env: true
+
+  ## Override Image repository and Tag. Tag will use appVersion as default.
+  ## Component's name will be applied to end of this value.
+  #   imageOverride: {}
+
+  ## Optional service definitions to apply
+  #   service:
+  ## Service Type to use for this component. Default is ClusterIP.
+  #     type: ClusterIP
+  ## Service Port to use to expose this component. Default is nil
+  #     port: 8080
+  ## Service Node Port to use to expose this component on a NodePort service. Default is nil
+  #     nodePort: 30080
+  ## Service Annotations to add to this component
+  #     annotations: {}
+  ## Additional service ports to use to expose this component
+  #   ports:
+  #     - name: extraServicePort
+  #       value: 8081
+
+  ## Environment variables to add to the component's pod
+  #   env:
+  ## Environment variables that upsert (append + merge) into the `env` specification for this component.
+  ## A variable named OTEL_RESOURCE_ATTRIBUTES_EXTRA will have its value appended to the OTEL_RESOURCE_ATTRIBUTES value.
+  #   envOverrides:
+
+  ## Pod Scheduling rules for nodeSelector, affinity, or tolerations.
+  #   schedulingRules:
+  #     nodeSelector: {}
+  #     affinity: {}
+  #     tolerations: []
+  ## Pod Annotations to add to this component
+  #   podAnnotations: {}
+  ## Resources for this component
+  #   resources: {}
+  ## Container security context for setting user ID (UID), group ID (GID) and other security policies
+  #   securityContext:
+
+  ## Ingresses rules to add for the to the component
+  # ingress:
+  ## Enable the creation of Ingress rules. Default is false
+  #   enabled: false
+  ## Annotations to add to the ingress rule
+  #   annotations: {}
+  ## Which Ingress class (controller) to use. Default is unspecified.
+  #   ingressClassName: nginx
+  ## Hosts definitions for the Ingress rule
+  #   hosts:
+  #     - host: demo.example.com
+  ## Each host can have multiple paths/routes
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #           port: 8080
+  ## Optional TLS specifications for the Ingress rule
+  #   tls:
+  #     - secretName: demo-tls
+  #       hosts:
+  #         - demo.example.com
+  ## Additional ingresses - only created if ingress.enabled is true
+  ## Useful for when differently annotated ingress services are required
+  ## Each additional ingress needs key "name" set to something unique
+  #   additionalIngresses: []
+  #     - name: extra-demo-ingress
+  #       ingressClassName: nginx
+  #       annotations: {}
+  #       hosts:
+  #         - host: demo.example.com
+  #           paths:
+  #             - path: /
+  #               pathType: Prefix
+  #               port: 8080
+  #       tls:
+  #         - secretName: demo-tls
+  #           hosts:
+  #             - demo.example.com
+
+  ## Command to use in the container spec, in case you don't want to go with the default command from the image.
+  #   command: []
+
+  ## Configuration to for this component; will create a Volume, and Mount backed by an optionally created ConfigMap.
+  ## The name, mountPath are required, and one of existingConfigMap or data is required.
+  ## If an existing ConfigMap is not provided, the contents under data will be used for the created ConfigMap.
+  #   mountedConfigMaps: []
+  #     - name: my-config
+  #       mountPath: /etc/config
+  #       subPath:
+  #       existingConfigMap: my-configmap
+  #       data:
+  #         my-config.yaml: |
+  #           key: value
+
+  # # Kubernetes container health check options
+  #   livenessProbe: {}
+
+  # # Optional init container to run before the pod starts.
+  #   initContainers:
+  #     - name: <init-container-name>
+  #       image: <init-container-image>
+  #       command: [list of commands for the init container to run]
+
+  # # Replicas for the component
+  #  replicas: 1
+  # # Number of old ReplicaSets to retain
+  #  revisionHistoryLimit: 10
+
+  # # Optional pod security context for setting user ID (UID), group ID (GID) and other security policies
+  # # This will be applied at pod level, can be applied globally for all pods: .Values.default.podSecurityContext
+  # # Or it can be applied to a specific component: .Values.components.<component-name>.podSecurityContext
+  #    podSecurityContext:
+  #      runAsGroup: 65534
+  #      runAsNonRoot: true
+  #      runAsUser: 65534
+  user-service:
+    enabled: true
+    useDefault:
+      env: true
+
+    env:
+      - name: MONGO_HOST
+        value: "mongo"
+      - name: MONGO_PORT
+        value: "27017"
+      - name: MONGO_AUTH__ENABLED
+        value: "true"
+      - name: MONGO_AUTH__USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: '{{ include "helm.name" . }}-user-service-mongo-secret'
+            key: username
+      - name: MONGO_AUTH__PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: '{{ include "helm.name" . }}-user-service-mongo-secret'
+            key: mongodb-root-password
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://{{ include "helm.name" . }}-otel-collector:4317
+
+      - name: OTEL_TRACES_EXPORTER
+        value: otlp, console
+      - name: OTEL_METRICS_EXPORTER
+        value: none
+      - name: OTEL_LOGS_EXPORTER
+        value: none
+      - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+        value: "openapi.json, docs, health"
+
+    # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+    replicas: 3
+
+    # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+    imageOverride:
+      repository: nekitsmertin/workspace-user-management
+      # Overrides the image tag whose default is the chart appVersion.
+      tag: "latest"
+
+    command: ["opentelemetry-instrument", "uvicorn", "src.app.main:app",  "--host", "0.0.0.0", "--port", "8000"]
+
+    ports:
+      - name: usr-svc-port
+        value: 8000
+
+    service:
+      port: 80
+      targetPort: usr-svc-port
+
+    # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+    ingress:
+      enabled: enabled
+      ingressClassName: "nginx"
+      annotations:
+        nginx.ingress.kubernetes.io/app-root: /docs
+        nginx.ingress.kubernetes.io/enable-opentelemetry: "true"
+      hosts:
+        - host: arch.homework
+          paths:
+            - path: /
+              pathType: Prefix
+              port: 80
+
+    # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+    secrets:
+      - name: mongo-secret
+        secret:
+          username: 'root'
+          mongodb-root-password: 'admin'
+
+    resources:
+      limits:
+        memory: 200Mi
+
+  locust:
+    enabled: true
+    useDefault:
+      env: true
+
+    # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+    replicas: 1
+
+    # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+    imageOverride:
+      repository: nekitsmertin/workspace-locust
+      # Overrides the image tag whose default is the chart appVersion.
+      tag: "latest"
+
+    ports:
+      - name: locust-svc-port
+        value: 8089
+
+    service:
+      port: 80
+      targetPort: locust-svc-port
+
+    # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+    ingress:
+      enabled: enabled
+      ingressClassName: "nginx"
+      hosts:
+        - host: locust.arch.homework
+          paths:
+            - path: /
+              pathType: Prefix
+              port: 80
+
+
+# ingress-nginx controller: https://kubernetes.github.io/ingress-nginx/
+ingress-nginx:
+  controller:
+    kind: DaemonSet
+
+    reportNodeInternalIp: true
+
+    hostPort:
+      enabled: true
+      ports:
+        http: 80
+        https: 443
+
+    service:
+      type: NodePort
+
+    config:
+      # https://kubernetes.github.io/ingress-nginx/user-guide/third-party-addons/opentelemetry/#usage
+      enable-opentelemetry: "true"
+      otlp-collector-host: '{{ include "helm.name" . }}-otel-collector'
+      # Span name
+      opentelemetry-operation-name: "$service_name"
+
+# mongodb chart: https://github.com/bitnami/charts/blob/main/bitnami/mongodb/README.md
+mongodb:
+  # https://github.com/bitnami/charts/blob/main/bitnami/mongodb/README.md#architecture
+  architecture: "standalone"
+  # https://github.com/bitnami/charts/blob/main/bitnami/mongodb/README.md#mongodb-parameters
+  auth:
+    enabled: true
+    existingSecret: '{{ include "helm.name" $ }}-user-service-mongo-secret'
+  service:
+    ports:
+      mongodb: "27017"
+    nameOverride: mongo
+
+# opentelemetry-collector chart:
+# https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector
+# https://opentelemetry.io/docs/kubernetes/getting-started/#daemonset-collector
+opentelemetry-collector-daemonset:
+  mode: daemonset
+
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.113.0
+  nameOverride: otel-collector
+  presets:
+    # enables the k8sattributesprocessor and adds it to the traces, metrics, and logs pipelines
+    kubernetesAttributes:
+      enabled: true
+    # enables the kubeletstatsreceiver and adds it to the metrics pipelines
+    kubeletMetrics:
+      enabled: true
+    # Enables the filelogreceiver and adds it to the logs pipelines
+    logsCollection:
+      enabled: false
+
+  service:
+    enabled: true
+  # Configuration for ports
+  # nodePort is also allowed
+  ports:
+    otlp:
+      enabled: true
+    otlp-http:
+      enabled: true
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+    # Prometheus exporter metrics
+    prometheus:
+      enabled: true
+      containerPort: 8889
+      servicePort: 8889
+      protocol: TCP
+
+  extraEnvs:
+    - name: MONGODB_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: workspace-user-service-mongo-secret
+          key: username
+    - name: MONGODB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: workspace-user-service-mongo-secret
+          key: mongodb-root-password
+
+  # The chart only includes the loggingexporter by default
+  # If you want to send your data somewhere you need to
+  # configure an exporter, such as the otlpexporter
+  config:
+    receivers:
+    # The otpl receiver is used by default
+    # https://github.com/open-telemetry/opentelemetry-collector/tree/main/receiver/otlpreceiver
+
+      # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/kubeletstatsreceiver
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: "serviceAccount"
+        endpoint: ${env:K8S_NODE_NAME}:10250
+        node: '${env:K8S_NODE_NAME}'
+        insecure_skip_verify: true
+        metric_groups:
+          - node
+          - pod
+          - container
+        metrics:
+          k8s.pod.cpu.node.utilization:
+            enabled: true
+          k8s.pod.memory.node.utilization:
+            enabled: true
+          k8s.container.cpu.node.utilization:
+            enabled: true
+          k8s.container.memory.node.utilization:
+            enabled: true
+
+      mongodb:
+        hosts:
+          - endpoint: 'mongo:27017'
+        username: ${env:MONGODB_USERNAME}
+        password: ${env:MONGODB_PASSWORD}
+        collection_interval: 60s
+        initial_delay: 1s
+        tls:
+          insecure: true
+          insecure_skip_verify: true
+
+    exporters:
+      prometheus:
+        endpoint: ${env:MY_POD_IP}:8889
+        resource_to_telemetry_conversion:
+          enabled: true
+
+    connectors:
+      # spanmetrics docs:
+      # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/connector/spanmetricsconnector/README.md
+      spanmetrics:
+        histogram:
+          explicit:
+            buckets: [ 100us, 1ms, 2ms, 6ms, 10ms, 100ms, 250ms ]
+        dimensions:
+          - name: http.method
+          - name: http.status_code
+          - name: http.route
+        metrics_flush_interval: 15s
+        metrics_expiration: 10m
+
+    service:
+      pipelines:
+        traces:
+          receivers: [ otlp ]
+          processors: [ batch ]
+          exporters: [ spanmetrics ]
+        metrics/spanmetrics:
+          receivers: [ spanmetrics ]
+          exporters: [ prometheus ]
+        metrics:
+          receivers: [kubeletstats, mongodb]
+          exporters: [ prometheus ]
+
+      telemetry:
+        logs:
+          level: debug
+
+prometheus:
+  alertmanager:
+    enabled: false
+  configmapReload:
+    prometheus:
+      enabled: false
+  kube-state-metrics:
+    enabled: false
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+
+  server:
+    global:
+      scrape_interval: 5s
+      scrape_timeout: 3s
+      evaluation_interval: 15s
+    persistentVolume:
+      enabled: false
+    service:
+      servicePort: 80
+    # https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus#ingress-tls
+    ingress:
+      ingressClassName: "nginx"
+
+      ## If true, Prometheus server Ingress will be created
+      ##
+      enabled: true
+
+      ## Prometheus server Ingress hostnames
+      ## Must be provided if Ingress is enabled
+      ##
+      hosts:
+        - prometheus.arch.homework
+
+
+  serverFiles:
+    prometheus.yml:
+      scrape_configs:
+        - job_name: aggregated-trace-metrics
+          static_configs:
+            - targets: ['workspace-otel-collector:8889']
+
+
+grafana:
+  ingress:
+    enabled: true
+    hosts: ["grafana.arch.homework"]
+    ingressClassName: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/app-root: /grafana
+
+  grafana.ini:
+    auth:
+      disable_login_form: true
+    auth.anonymous:
+      enabled: true
+      org_name: Main Org.
+      org_role: Admin
+    server:
+      serve_from_sub_path: true
+  adminPassword: admin
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        # <string, required> Sets the name you use to refer to
+        # the data source in panels and queries.
+        - name: Prometheus
+          # <string, required> Sets the data source type.
+          type: prometheus
+          typeName: Prometheus
+          # <string, required> Sets the access mode, either
+          # proxy or direct (Server or Browser in the UI).
+          # Some data sources are incompatible with any setting
+          # but proxy (Server).
+          access: proxy
+          # <string> Sets a custom UID to reference this
+          # data source in other parts of the configuration.
+          # If not specified, Grafana generates one.
+          uid: prometheus
+          # <string> Sets the data source's URL, including the port.
+          url: http://{{ include "helm.name" . }}-prometheus-server:80
+          # <bool> Toggles whether the data source is pre-selected
+          # for new panels. You can set only one default
+          # data source per organization.
+          isDefault: true
+          # <map> Fields to convert to JSON and store in jsonData.
+          jsonData:
+            httpMethod: POST
+          readOnly: false
+          # <bool> Allows users to edit data sources from the
+          # Grafana UI
+          editable: true
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: 'file'
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  dashboardsConfigMaps:
+    default: '{{ include "helm.name" . }}-grafana-dashboards'

@@ -1,0 +1,19 @@
+{{- range $name, $config := .Values.components }}
+    {{- $config := set . "Capabilities" $.Capabilities }}
+    {{- $config = set . "Template" $.Template }}
+    {{- $config = set . "name" ($name | lower) }}
+    {{- $config = set . "Release" $.Release }}
+    {{- $config = set . "Chart" $.Chart }}
+    {{- $config = set . "serviceAccount" $.Values.serviceAccount }}
+    {{- $config = set . "observability" $.Values.observability }}
+    {{- $config = set . "defaultValues" $.Values.default }}
+
+    {{- if $config.enabled -}}
+        {{- include "helm.deployment" $config -}}
+        {{- include "helm.service" $config -}}
+        {{- include "helm.ingress" $config -}}
+        {{- include "helm.configmap" $config -}}
+        {{- include "helm.secret" $config -}}
+    {{ end }}
+
+{{- end }}
