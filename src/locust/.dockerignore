@@ -1,0 +1,38 @@
+# OS generated files
+**/.DS_Store
+
+# Git
+**/.git
+**/.dockerignore
+**/.gitignore
+
+# Environment and IDE settings
+**/.env
+**/.venv
+**/env
+**/venv
+
+# IDE settings
+**/.idea
+**/.vscode
+
+# Python and Pytest cache
+**/__pycache__
+**/.pytest_cache
+
+# Test results and test assets
+**/allure-results
+**/test-results
+**/deleted_ids_*
+**/created_ids_*
+
+# Configuration and scripts
+#**/config.yml
+**/script.py
+
+# CI/CD
+**/Dockerfile*
+**/Jenkinsfile*
+
+
+

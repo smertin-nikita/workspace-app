@@ -1,0 +1,100 @@
+services:
+
+  user-management-service:
+    image: ${IMAGE_NAME}-user-management:${DEMO_VERSION}
+    container_name: user-management-service
+    build:
+      context: ${USER_MANAGEMENT_SERVICE_SRC}/
+      dockerfile: ${USER_MANAGEMENT_SERVICE_DOCKERFILE}
+    platform: linux/amd64
+    tty: true
+    volumes:
+      - ${USER_MANAGEMENT_SERVICE_SRC}/app:/src/app
+    ports:
+      - "${USER_MANAGEMENT_SERVICE_PORT}:${USER_MANAGEMENT_SERVICE_PORT}"
+    environment:
+      - USER_MANAGEMENT_SERVICE_DEBUG
+      - OTEL_SERVICE_NAME=user-management-service
+      - OTEL_TRACES_EXPORTER=otlp #, console
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      - OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+
+    depends_on:
+      mongo:
+        condition: service_started
+      collector:
+        condition: service_started
+    entrypoint: ["opentelemetry-instrument", "uvicorn", "src.app.main:app",  "--host", "0.0.0.0", "--port", "8000"]
+
+  mongo:
+    image: ${MONGO_IMAGE}
+    container_name: mongo
+    volumes:
+      - db-data:/data/db
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE}
+    container_name: prometheus
+    ports:
+      - "${PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
+    volumes:
+      - ${PROMETHEUS_CONFIG}:/etc/prometheus/prometheus-config.yaml
+    command: ["--config.file=/etc/prometheus/prometheus-config.yaml"]
+
+  collector:
+    image: ${COLLECTOR_CONTRIB_IMAGE}
+    container_name: collector
+    command: ["--config=/conf/otel-collector-config.yaml"]
+    volumes:
+      - ${OTEL_COLLECTOR_CONFIG}:/conf/otel-collector-config.yaml
+    ports:
+      - "${OTEL_COLLECTOR_PORT_GRPC}"
+      - "${OTEL_COLLECTOR_PORT_HTTP}"
+      - "${OTEL_COLLECTOR_PORT_PROMETHEUS_EXPORTER}:${OTEL_COLLECTOR_PORT_PROMETHEUS_EXPORTER}"
+    restart: unless-stopped
+    environment:
+      - OTEL_COLLECTOR_HOST
+      - OTEL_COLLECTOR_PORT_GRPC
+      - OTEL_COLLECTOR_PORT_HTTP
+      - OTEL_COLLECTOR_PORT_PROMETHEUS_EXPORTER
+      - MONGO_HOST
+      - MONGO_PORT
+
+  #  tempo:
+#    image: grafana/tempo
+#    command: [ "--target=all", "--storage.trace.backend=local", "--storage.trace.local.path=/var/tempo", "--auth.enabled=false" ]
+#    ports:
+#      - "14250:14250"
+
+  grafana:
+    image: ${GRAFANA_IMAGE}
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT}:${GRAFANA_PORT}"
+    restart: unless-stopped
+    volumes:
+      - ${GRAFANA_PROVISIONING}:/etc/grafana/provisioning
+      - ${GRAFANA_CONFIG}:/etc/grafana/grafana.ini
+#    environment:
+#      GF_LOG_LEVEL: "debug"
+#      GF_FEATURE_TOGGLES_ENABLE: "timeSeriesTable"
+
+
+  locust:
+    image: ${IMAGE_NAME}-locust:${DEMO_VERSION}
+    container_name: locust
+    build:
+      context: ${LOCUST_SRC}/
+      dockerfile: ${LOCUST_DOCKERFILE}
+    ports:
+      - "${LOCUST_PORT}:${LOCUST_PORT}"
+    volumes:
+      - ${LOCUST_SRC}/app:/usr/src/app
+      - ${LOCUST_SRC}/locust.conf:/usr/src/locust.conf
+    restart: unless-stopped
+    command: ["--config", "/usr/src/locust.conf"]
+
+volumes:
+  db-data:

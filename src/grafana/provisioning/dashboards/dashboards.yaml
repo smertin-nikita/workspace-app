@@ -1,0 +1,17 @@
+apiVersion: 1
+providers:
+- name: 'OpenTelemetry APM'
+  orgId: 1
+  type: 'file'
+  disableDeletion: true
+  editable: true
+  options:
+    path: '/etc/grafana/provisioning/dashboards/opentelemetry'
+
+- name: 'Databases'
+  orgId: 1
+  type: 'file'
+  disableDeletion: true
+  editable: true
+  options:
+    path: '/etc/grafana/provisioning/dashboards/databases'
