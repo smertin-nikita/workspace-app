@@ -1,4 +1,4 @@
-# Workspace microservice demo
+# Workspace microservices demo
 
 ## Prerequisites
 Install helm:
