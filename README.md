@@ -1,4 +1,4 @@
-# FastAPI users service demo
+# Workspace microservice demo
 
 ## Prerequisites
 Install helm:
