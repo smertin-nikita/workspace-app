@@ -7,17 +7,7 @@ venv/
 .idea/
 .vscode/
 
-## Python and Pytest cache
-#**/__pycache__
-#.pytest_cache
-#
-## Test results and test assets
-#**/allure-results
-#**/test-results
-#deleted_ids_*
-#created_ids_*
-#trace*
+# Python and Pytest cache
+**/__pycache__
+.pytest_cache
 
-# Configuration and scripts
-config.yml
-script.py
