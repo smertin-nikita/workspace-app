@@ -9,31 +9,21 @@ Add repositories:
 
 ```shell
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
+```
+Create namespace
+```shell
+kubectl create ns workspace-ns
 ```
 
-Install release:
+Apply manifests
 ```shell
-helm dep update helm -n workspace-ns
-helm upgrade workspace helm -n workspace-ns --install --create-namespace
+kubectl apply -f deploy
 ```
 
 Update hosts file
 ```
-<minikube ip> arch.homework prometheus.arch.homework grafana.arch.homework locust.arch.homework
+<minikube ip> auth.arch.homework backend.arch.homework
 ```
 
-## OpenAPI
-http://arch.homework/docs
-
-## Locust load generator
-http://locust.arch.homework
-Host to test http://arch.homework:80
-
-## Grafana 
-http://grafana.arch.homework
-
-## Prometheus
-http://prometheus.arch.homework/
+## Postman collection
+https://www.postman.com/material-geoscientist-42602158/public-projects/folder/6q0hke2/process-user-registration
