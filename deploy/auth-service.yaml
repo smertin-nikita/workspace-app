@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-auth-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: auth-service
+    app.kubernetes.io/name: workspace-auth-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: workspace
+      app.kubernetes.io/component: auth-service
+      app.kubernetes.io/name: workspace-auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: workspace
+        app.kubernetes.io/component: auth-service
+        app.kubernetes.io/name: workspace-auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: 'nekitsmertin/auth:latest'
+          imagePullPolicy: Never
+          command:
+            - /app/entrypoint.sh
+          ports:
+            - containerPort: 8000
+              name: auth-svc-port
+          env:
+#            - name: OTEL_SERVICE_NAME
+#              valueFrom:
+#                fieldRef:
+#                  apiVersion: v1
+#                  fieldPath: metadata.labels['app.kubernetes.io/component']
+#            - name: OTEL_COLLECTOR_NAME
+#              value: 'workspace-otel-collector'
+#            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+#              value: cumulative
+            - name: POSTGRES_HOST
+              value: postgresql
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_USER
+              value: admin
+            - name: POSTGRES_DB
+              value: postgres
+            - name: BROKER_PORT
+              value: "5672"
+            - name: BROKER_HOST
+              value: rabbitmq
+
+          #            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#              value: http://workspace-otel-collector:4317
+#            - name: OTEL_TRACES_EXPORTER
+#              value: otlp, console
+#            - name: OTEL_METRICS_EXPORTER
+#              value: none
+#            - name: OTEL_LOGS_EXPORTER
+#              value: none
+#            - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+#              value: openapi.json, docs, health
+#            - name: OTEL_RESOURCE_ATTRIBUTES
+#              value: service.name=otel-collector,service.namespace=workspace-ns,service.version=1.1.0
+          resources:
+            limits:
+              memory: 200Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-auth-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: auth-service
+    app.kubernetes.io/name: workspace-auth-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: auth-svc-port
+  selector:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: auth-service
+    app.kubernetes.io/name: workspace-auth-service
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: workspace-auth-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: auth-service
+    app.kubernetes.io/name: workspace-auth-service
+  annotations:
+    nginx.ingress.kubernetes.io/enable-opentelemetry: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "api.arch.homework"
+      http:
+        paths:
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: workspace-auth-service
+                port:
+                  number: 80
+          - path: /api/v1/users
+            pathType: Prefix
+            backend:
+              service:
+                name: workspace-auth-service
+                port:
+                  number: 80

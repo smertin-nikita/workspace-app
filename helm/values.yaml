@@ -168,6 +168,81 @@ components:
   #      runAsGroup: 65534
   #      runAsNonRoot: true
   #      runAsUser: 65534
+  auth-service:
+    enabled: true
+
+    useDefault:
+      env: true
+
+    env:
+      - name: POSTGRES_HOST
+        value: "database"
+      - name: POSTGRES_PORT
+        value: "5432"
+      - name: POSTGRES_PASSWORD
+        value: "password"
+      - name: POSTGRES_USER
+        value: "admin"
+      - name: POSTGRES_DB
+        value: "postres"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://{{ include "helm.name" . }}-otel-collector:4317
+
+      - name: OTEL_TRACES_EXPORTER
+        value: otlp, console
+      - name: OTEL_METRICS_EXPORTER
+        value: none
+      - name: OTEL_LOGS_EXPORTER
+        value: none
+      - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+        value: "openapi.json, docs, health"
+
+    # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+    replicas: 1
+
+    # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+    imageOverride:
+      repository: nekitsmertin/auth
+      # Overrides the image tag whose default is the chart appVersion.
+      tag: "latest"
+
+    command: ["opentelemetry-instrument", "/app/entrypoint.sh"]
+
+    ports:
+      - name: usr-svc-port
+        value: 8000
+
+    service:
+      port: 80
+      targetPort: usr-svc-port
+
+    # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+    ingress:
+      enabled: enabled
+      ingressClassName: "nginx"
+      annotations:
+        nginx.ingress.kubernetes.io/app-root: /docs
+        nginx.ingress.kubernetes.io/enable-opentelemetry: "true"
+      hosts:
+        - host: arch.homework
+          paths:
+            - path: /
+              pathType: Prefix
+              port: 80
+
+    # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+    resources:
+      limits:
+        memory: 200Mi
+
+
   user-service:
     enabled: true
     useDefault:
@@ -253,6 +328,8 @@ components:
       limits:
         memory: 200Mi
 
+
+
   locust:
     enabled: true
     useDefault:
@@ -322,6 +399,8 @@ mongodb:
     ports:
       mongodb: "27017"
     nameOverride: mongo
+
+
 
 # opentelemetry-collector chart:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector

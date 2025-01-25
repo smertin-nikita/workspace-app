@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: workspace-otel-collector-agent
+  namespace: workspace-ns
+  labels:
+    helm.sh/chart: opentelemetry-collector-daemonset-0.109.0
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/version: "0.113.0"
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: otel-collector
+      app.kubernetes.io/instance: workspace
+      component: agent-collector
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: f42237021dd6bada9bb633713747e5d8f424f1cd383cfed36fd9482c7e7e3ab2
+
+      labels:
+        app.kubernetes.io/name: otel-collector
+        app.kubernetes.io/instance: workspace
+        component: agent-collector
+
+    spec:
+
+      serviceAccountName: workspace-otel-collector
+      securityContext:
+        {}
+      containers:
+        - name: opentelemetry-collector-daemonset
+          args:
+            - --config=/conf/relay.yaml
+          securityContext:
+            {}
+          image: "otel/opentelemetry-collector-contrib:0.113.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+
+            - name: otlp
+              containerPort: 4317
+              protocol: TCP
+              hostPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+              hostPort: 4318
+            - name: prometheus
+              containerPort: 8889
+              protocol: TCP
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MONGODB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: workspace-user-service-mongo-secret
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: mongodb-root-password
+                  name: workspace-user-service-mongo-secret
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          volumeMounts:
+            - mountPath: /conf
+              name: opentelemetry-collector-daemonset-configmap
+      volumes:
+        - name: opentelemetry-collector-daemonset-configmap
+          configMap:
+            name: workspace-otel-collector-agent
+            items:
+              - key: relay
+                path: relay.yaml
+      hostNetwork: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-otel-collector
+  namespace: workspace-ns
+  labels:
+    helm.sh/chart: opentelemetry-collector-daemonset-0.109.0
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/version: "0.113.0"
+    app.kubernetes.io/managed-by: Helm
+
+    component: agent-collector
+spec:
+  type: ClusterIP
+  ports:
+
+    - name: otlp
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+      appProtocol: grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: prometheus
+      port: 8889
+      targetPort: 8889
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: workspace
+    component: agent-collector
+  internalTrafficPolicy: Local

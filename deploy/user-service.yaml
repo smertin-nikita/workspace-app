@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-user-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: user-service
+    app.kubernetes.io/name: workspace-user-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: workspace
+      app.kubernetes.io/component: user-service
+      app.kubernetes.io/name: workspace-user-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: workspace
+        app.kubernetes.io/component: user-service
+        app.kubernetes.io/name: workspace-user-service
+    spec:
+      containers:
+        - name: user-service
+          image: 'nekitsmertin/workspace-user-management:latest'
+          imagePullPolicy: Never
+          command: ["opentelemetry-instrument", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+              name: usr-svc-port
+          env:
+#            - name: OTEL_SERVICE_NAME
+#              valueFrom:
+#                fieldRef:
+#                  apiVersion: v1
+#                  fieldPath: metadata.labels['app.kubernetes.io/component']
+#            - name: OTEL_COLLECTOR_NAME
+#              value: 'workspace-otel-collector'
+#            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+#              value: cumulative
+            - name: MONGO_HOST
+              value: mongo
+            - name: MONGO_PORT
+              value: "27017"
+            - name: MONGO_AUTH__ENABLED
+              value: "false"
+#            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#              value: http://workspace-otel-collector:4317
+#            - name: OTEL_TRACES_EXPORTER
+#              value: otlp, console
+#            - name: OTEL_METRICS_EXPORTER
+#              value: none
+#            - name: OTEL_LOGS_EXPORTER
+#              value: none
+#            - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+#              value: openapi.json, docs, health
+#            - name: OTEL_RESOURCE_ATTRIBUTES
+#              value: service.name=otel-collector,service.namespace=workspace-ns,service.version=1.1.0
+          resources:
+            limits:
+              memory: 200Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-user-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: user-service
+    app.kubernetes.io/name: workspace-user-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      name: tcp-service
+      targetPort: usr-svc-port
+  selector:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: user-service
+    app.kubernetes.io/name: workspace-user-service
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: workspace-user-service
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: user-service
+    app.kubernetes.io/name: workspace-user-service
+  annotations:
+    nginx.ingress.kubernetes.io/enable-opentelemetry: "true"
+    nginx.ingress.kubernetes.io/auth-url: http://auth.arch.homework
+    nginx.ingress.kubernetes.io/auth-snippet: |
+      proxy_set_header Foo-Header 42;
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "api.arch.homework"
+      http:
+        paths:
+          - path: /api/v1/profiles
+            pathType: Prefix
+            backend:
+              service:
+                name: workspace-user-service
+                port:
+                  number: 80
+

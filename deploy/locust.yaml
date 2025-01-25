@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-locust
+  labels:
+    nekitsmertin/name: workspace-locust
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: locust
+    app.kubernetes.io/name: workspace-locust
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/part-of: workspace-ns
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      nekitsmertin/name: workspace-locust
+  template:
+    metadata:
+      labels:
+
+        nekitsmertin/name: workspace-locust
+        app.kubernetes.io/instance: workspace
+        app.kubernetes.io/component: locust
+        app.kubernetes.io/name: workspace-locust
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: locust
+          image: 'nekitsmertin/workspace-locust:latest'
+          imagePullPolicy: IfNotPresent
+          ports:
+
+            - containerPort: 8089
+              name: locust-svc-port
+          env:
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: OTEL_COLLECTOR_NAME
+              value: 'workspace-otel-collector'
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: cumulative
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.name=otel-collector,service.namespace=workspace-ns,service.version=1.1.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-locust
+  labels:
+    helm.sh/chart: helm-1.0.0
+
+    nekitsmertin/name: workspace-locust
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: locust
+    app.kubernetes.io/name: workspace-locust
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/part-of: workspace-ns
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      name: tcp-service
+      targetPort: locust-svc-port
+  selector:
+
+    nekitsmertin/name: workspace-locust
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: workspace-locust
+  labels:
+    helm.sh/chart: helm-1.0.0
+
+    nekitsmertin/name: workspace-locust
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/component: locust
+    app.kubernetes.io/name: workspace-locust
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/part-of: workspace-ns
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "locust.arch.homework"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workspace-locust
+                port:
+                  number: 80

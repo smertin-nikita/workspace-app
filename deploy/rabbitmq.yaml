@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-configmap
+data:
+  definitions.json: |
+    {
+      "vhosts": [
+        {
+          "name": "/"
+        }
+      ],
+      "users": [
+        {
+          "name": "guest",
+          "password_hash": "rna6VNTe3cXHLrVwRng9vK95mEkt4NeTjMVjEzuo5xKwTcHJ",
+          "hashing_algorithm": "rabbit_password_hashing_sha256",
+          "tags": [
+            "administrator"
+          ],
+          "limits": {
+          }
+        },
+        {
+          "name": "assets",
+          "password_hash": "tqwR5AY+sQe393Kp5XhoiVtRcXKtLegzbAx7TIpdXGWYPPrS",
+          "hashing_algorithm": "rabbit_password_hashing_sha256",
+          "tags": [],
+          "limits": {
+          }
+        },
+        {
+          "name": "authentication",
+          "password_hash": "WoTOzUiterOXh8O0wdPvSKbRFyI4Zzce3loXovi/SWfMDDCK",
+          "hashing_algorithm": "rabbit_password_hashing_sha256",
+          "tags": [],
+          "limits": {
+          }
+        }
+      ],
+      "permissions": [
+        {
+          "user": "assets",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        },
+        {
+          "user": "authentication",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        }
+    
+      ],
+      "exchanges": [
+        {
+          "name": "authentication.events",
+          "vhost": "/",
+          "type": "direct",
+          "durable": true,
+          "auto_delete": false
+        }
+      ],
+      "queues": [
+        {
+          "name": "assets.new_user",
+          "vhost": "/",
+          "durable": true
+        }
+      ],
+      "bindings": [
+        {
+          "source": "authentication.events",
+          "vhost": "/",
+          "destination": "assets.new_user",
+          "destination_type": "queue",
+          "routing_key": "authentication.user.registered"
+        }
+      ]
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-rabbitmq
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: rabbitmq
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: workspace
+      app.kubernetes.io/name: rabbitmq
+      app.kubernetes.io/component: rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: workspace
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/component: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4.0.5-management
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+              value: -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+            - name: RABBITMQ_DEFAULT_USER
+              value: rabbit
+            - name: RABBITMQ_DEFAULT_PASS
+              value: rabbit
+          ports:
+            - name: rabbitmq
+              containerPort: 5672
+            - name: rabbitmq-mgt
+              containerPort: 15672
+          volumeMounts:
+            - name: rabbitmq-definitions
+              mountPath: /etc/rabbitmq/definitions.json
+              subPath: definitions.json
+              readOnly: true
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: rabbitmq-definitions
+          configMap:
+            name: rabbitmq-configmap
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: workspace-rabbitmq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: rabbitmq
+spec:
+  type: ClusterIP
+  ports:
+    - name: "rabbitmq"
+      port: 5672
+      targetPort: rabbitmq
+    - name: "rabbitmq-mgt"
+      port: 8080
+      targetPort: rabbitmq-mgt
+  selector:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: rabbitmq
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: rabbitmq
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: rabbitmq
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "rabbitmq.arch.homework"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 8080
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: workspace-rabbitmq
+  namespace: "workspace-ns"
+  labels:
+    app.kubernetes.io/instance: workspace
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: rabbitmq
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+

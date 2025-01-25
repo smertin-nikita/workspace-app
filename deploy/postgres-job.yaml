@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-configmap
+data:
+  init-users-dbs.sh: |
+    #!/bin/bash -x
+    
+    set -e
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    CREATE USER $AUTHENTICATION_USER WITH PASSWORD '$AUTHENTICATION_PASSWORD';
+    CREATE DATABASE $AUTHENTICATION_DB OWNER $AUTHENTICATION_USER;
+    EOSQL
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-postgres-db
+spec:
+  template:
+    metadata:
+      name:  init-db
+      labels:
+        app: init-postgres-db
+    spec:
+      containers:
+      - image: postgres:17
+        name: init-postgres-db
+        env:
+          - name: POSTGRES_HOST
+            value: "postgresql"
+          - name: POSTGRES_DB
+            value: "postgres"
+          - name: POSTGRES_USER
+            value: "admin"
+          - name: POSTGRES_PASSWORD
+            value: "password"
+          - name: AUTHENTICATION_DB
+            value: authentication_db
+          - name: AUTHENTICATION_USER
+            value: authentication_user
+          - name: AUTHENTICATION_PASSWORD
+            value: password
+        volumeMounts:
+          - name: postgres-init
+            mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: postgresql-configmap
+      restartPolicy: OnFailure
