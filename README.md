@@ -15,6 +15,12 @@ Create namespace
 kubectl create ns workspace-ns
 ```
 
+Install ingress controller
+```shell
+ helm repo update && helm install nginx ingress-nginx/ingress-nginx --namespace workspace-ns -f deploy/nginx-ingress.yaml
+```
+
+
 Apply manifests
 ```shell
 kubectl apply -f deploy
